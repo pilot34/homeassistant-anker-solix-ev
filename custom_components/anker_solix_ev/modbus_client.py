@@ -20,7 +20,7 @@ class ModbusException(Exception):
 class ModbusSettings:
     host: str
     port: int
-    address_offset: int = 0
+    address_offset: int = 0  # Read-only compatibility offset; never applied to writes.
     word_order: str = "hi_lo"  # or "lo_hi"
     connect_timeout: float = 5.0
     response_timeout: float = 5.0
@@ -45,7 +45,8 @@ class AnkerModbusClient:
         self._reader: asyncio.StreamReader | None = None
         self._writer: asyncio.StreamWriter | None = None
 
-    def _addr(self, register: int) -> int:
+    def _read_addr(self, register: int) -> int:
+        """Return a read address adjusted for device addressing conventions."""
         return register + self._s.address_offset
 
     def _next_tid(self) -> int:
@@ -206,25 +207,27 @@ class AnkerModbusClient:
 
     async def read_u16(self, register: int) -> int:
         async with self._lock:
-            addr = self._addr(register)
+            addr = self._read_addr(register)
             regs = await self._read_holding_with_fallback(addr, 1)
             return int(regs[0])
 
     async def read_u32(self, register: int) -> int:
         async with self._lock:
-            addr = self._addr(register)
+            addr = self._read_addr(register)
             regs = await self._read_holding_with_fallback(addr, 2)
             return self.u32_from_words(regs[:2])
 
     async def read_block(self, start_register: int, quantity: int) -> List[int]:
         """Read a contiguous register block and return uint16 words."""
         async with self._lock:
-            addr = self._addr(start_register)
+            addr = self._read_addr(start_register)
             return await self._read_holding_with_fallback(addr, quantity)
 
     async def write_u16(self, register: int, value: int) -> None:
         async with self._lock:
-            addr = self._addr(register)
+            # Control-register addresses are defined explicitly by the protocol.
+            # A read compatibility offset must never redirect a write command.
+            addr = register
             val = int(value) & 0xFFFF
             pdu = b"\x06" + addr.to_bytes(2, "big") + val.to_bytes(2, "big")
             resp = await self._exchange_with_retry(pdu)

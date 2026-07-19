@@ -17,6 +17,10 @@ If sensors show nonsense, try:
 - Address offset: -1
 - Word order: lo_hi
 
+The address offset is applied only to reads for compatibility with differing
+register-number conventions. Control writes always use the canonical addresses
+from the Anker protocol and cannot be redirected by this option.
+
 ## MVP entities
 - Charging Status (20097)
 - Total Active Power W (20068, UINT32)
