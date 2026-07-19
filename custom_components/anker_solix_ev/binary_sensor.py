@@ -19,7 +19,8 @@ async def async_setup_entry(
             _FlagBinarySensor(coord, entry, "PWM Enabled", "pwm_enabled"),
             _FlagBinarySensor(coord, entry, "Load Balancing Enabled", "load_balancing_enabled"),
             _FlagBinarySensor(coord, entry, "Solar Balancing Enabled", "solar_balancing_enabled"),
-            _FlagBinarySensor(coord, entry, "CP Signal Status", "cp_signal_status"),
+            _FlagBinarySensor(coord, entry, "Boost Mode", "boost_mode"),
+            _FlagBinarySensor(coord, entry, "MQTT Connection Status", "mqtt_connection_status"),
         ]
     )
 

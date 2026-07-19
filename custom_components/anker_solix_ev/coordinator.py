@@ -21,7 +21,8 @@ from .const import (
     REG_L1_APPARENT_POWER, REG_L2_APPARENT_POWER, REG_L3_APPARENT_POWER,
     REG_OPERATING_MODE, REG_PWM_ENABLED, REG_CHARGING_MODE,
     REG_CP_SIGNAL_STATUS, REG_LOAD_BALANCING_ENABLED, REG_SOLAR_BALANCING_ENABLED,
-    REG_CP_ACQ_VOLTAGE, REG_LED_BRIGHTNESS,
+    REG_CP_ACQ_VOLTAGE, REG_BOOST_STATUS, REG_LED_BRIGHTNESS,
+    REG_OCPP_CONNECTION_STATUS, REG_MQTT_CONNECTION_STATUS,
     REG_RELAY1_TEMP, REG_RELAY2_TEMP,
 )
 from .modbus_client import AnkerModbusClient, ModbusSettings
@@ -70,14 +71,9 @@ class AnkerSolixCoordinator(DataUpdateCoordinator[dict]):
             raise UpdateFailed(str(err)) from err
 
     async def _read_all_data(self) -> dict:
-        # Read the documented telemetry ranges as blocks. The gaps are kept
-        # separate because some firmware rejects ranges containing unsupported
-        # registers with an Illegal Data Address response.
+        # The documented telemetry registers form one contiguous range.
         blocks = (
-            (20053, await self.client.read_block(20053, 33)),
-            (20086, await self.client.read_block(20086, 1)),
-            (20089, await self.client.read_block(20089, 2)),
-            (20092, await self.client.read_block(20092, 8)),
+            (20053, await self.client.read_block(20053, 48)),
         )
 
         def u16(register: int) -> int:
@@ -89,6 +85,10 @@ class AnkerSolixCoordinator(DataUpdateCoordinator[dict]):
 
         def u32(register: int) -> int:
             return self.client.u32_from_words([u16(register), u16(register + 1)])
+
+        def s16(register: int) -> int:
+            value = u16(register)
+            return value - 0x10000 if value & 0x8000 else value
 
         status = u16(REG_CHARGING_STATUS)
         power_w = u32(REG_TOTAL_ACTIVE_POWER)
@@ -129,10 +129,13 @@ class AnkerSolixCoordinator(DataUpdateCoordinator[dict]):
         lb_enabled = u16(REG_LOAD_BALANCING_ENABLED)
         solar_enabled = u16(REG_SOLAR_BALANCING_ENABLED)
         cp_acq = u16(REG_CP_ACQ_VOLTAGE)
+        boost = u16(REG_BOOST_STATUS)
         led = u16(REG_LED_BRIGHTNESS)
 
-        relay1 = u16(REG_RELAY1_TEMP)
-        relay2 = u16(REG_RELAY2_TEMP)
+        relay1 = s16(REG_RELAY1_TEMP)
+        relay2 = s16(REG_RELAY2_TEMP)
+        ocpp = u16(REG_OCPP_CONNECTION_STATUS)
+        mqtt = u16(REG_MQTT_CONNECTION_STATUS)
 
         return {
             "charging_status": status,
@@ -158,8 +161,11 @@ class AnkerSolixCoordinator(DataUpdateCoordinator[dict]):
             "load_balancing_enabled": lb_enabled,
             "solar_balancing_enabled": solar_enabled,
             "cp_acq_voltage": cp_acq,
+            "boost_mode": boost,
             "led_brightness": led,
 
             "relay1_temp": relay1,
             "relay2_temp": relay2,
+            "ocpp_connection_status": ocpp,
+            "mqtt_connection_status": mqtt,
         }
