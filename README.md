@@ -24,7 +24,7 @@ If sensors show nonsense, try:
 - Session Energy Wh (20084, UINT32)
 - Buttons: Start/Stop (21000)
 - Number: Max Current A (21001, tenths of an ampere)
-- Select: Phase Setting (21003)
+- Select: Phase Setting (21005)
 
 ## Notes
 This integration is an MVP baseline intended for extension (more sensors, scaling, binary sensors, etc.).
