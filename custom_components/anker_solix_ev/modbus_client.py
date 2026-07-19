@@ -61,6 +61,12 @@ class AnkerModbusClient:
             hi, lo = w1, w0
         return (hi << 16) | lo
 
+    def u32_from_words(self, words: list[int]) -> int:
+        """Decode two register words using the configured word order."""
+        if len(words) != 2:
+            raise ValueError(f"Expected 2 words, got {len(words)}")
+        return self._u32_from_words(words, self._s.word_order)
+
     async def _open(self) -> Tuple[asyncio.StreamReader, asyncio.StreamWriter]:
         try:
             return await asyncio.wait_for(
@@ -208,7 +214,7 @@ class AnkerModbusClient:
         async with self._lock:
             addr = self._addr(register)
             regs = await self._read_holding_with_fallback(addr, 2)
-            return self._u32_from_words(regs[:2], self._s.word_order)
+            return self.u32_from_words(regs[:2])
 
     async def read_block(self, start_register: int, quantity: int) -> List[int]:
         """Read a contiguous register block and return uint16 words."""

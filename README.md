@@ -23,11 +23,15 @@ If sensors show nonsense, try:
 - Session Duration s (20082, UINT32)
 - Session Energy Wh (20084, UINT32)
 - Buttons: Start/Stop (21000)
-- Number: Max Current A (21004)
+- Number: Max Current A (21001, tenths of an ampere)
 - Select: Phase Setting (21003)
 
 ## Notes
 This integration is an MVP baseline intended for extension (more sensors, scaling, binary sensors, etc.).
+
+Home Assistant represents the charger as one **Anker EV Charger** device. Its
+telemetry and controls are separate entities grouped beneath that device, which
+is the native Home Assistant device model.
 
 
 ## v0.1.1

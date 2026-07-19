@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from homeassistant.components.sensor import SensorEntity
+from homeassistant.components.sensor import SensorDeviceClass, SensorEntity, SensorStateClass
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
@@ -13,6 +14,7 @@ from .const import (
     CP_ACQ_VOLTAGE_MAP,
 )
 from .coordinator import AnkerSolixCoordinator
+from .entity import AnkerSolixEntity
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback):
@@ -56,15 +58,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     ])
 
 
-class _Base(SensorEntity):
-    _attr_has_entity_name = True
+class _Base(AnkerSolixEntity, SensorEntity):
 
     def __init__(self, coordinator: AnkerSolixCoordinator, entry: ConfigEntry):
-        self.coordinator = coordinator
-        self.entry = entry
-
-    async def async_added_to_hass(self):
-        self.async_on_remove(self.coordinator.async_add_listener(self.async_write_ha_state))
+        super().__init__(coordinator, entry)
 
 
 class ChargingStatusSensor(_Base):
@@ -86,8 +83,8 @@ class ChargingStatusSensor(_Base):
 class TotalActivePowerSensor(_Base):
     _attr_name = "Total Active Power"
     _attr_native_unit_of_measurement = "W"
-    _attr_device_class = "power"
-    _attr_state_class = "measurement"
+    _attr_device_class = SensorDeviceClass.POWER
+    _attr_state_class = SensorStateClass.MEASUREMENT
 
     @property
     def unique_id(self):
@@ -105,6 +102,11 @@ class U16Sensor(_Base):
         self._attr_name = name
         self._key = key
         self._attr_native_unit_of_measurement = unit
+        if key == "led_brightness":
+            self._attr_entity_category = EntityCategory.DIAGNOSTIC
+        elif key.endswith("_temp"):
+            self._attr_device_class = SensorDeviceClass.TEMPERATURE
+            self._attr_state_class = SensorStateClass.MEASUREMENT
 
     @property
     def unique_id(self):
@@ -122,6 +124,20 @@ class U32Sensor(_Base):
         self._attr_name = name
         self._key = key
         self._attr_native_unit_of_measurement = unit
+        if key == "energy_wh":
+            self._attr_device_class = SensorDeviceClass.ENERGY
+            self._attr_state_class = SensorStateClass.TOTAL_INCREASING
+        elif key == "duration_s":
+            self._attr_device_class = SensorDeviceClass.DURATION
+        elif key.startswith("p_"):
+            self._attr_device_class = SensorDeviceClass.POWER
+            self._attr_state_class = SensorStateClass.MEASUREMENT
+        elif key.startswith("q_"):
+            self._attr_device_class = SensorDeviceClass.REACTIVE_POWER
+            self._attr_state_class = SensorStateClass.MEASUREMENT
+        elif key.startswith("s_"):
+            self._attr_device_class = SensorDeviceClass.APPARENT_POWER
+            self._attr_state_class = SensorStateClass.MEASUREMENT
 
     @property
     def unique_id(self):
@@ -140,6 +156,10 @@ class ScaledU16Sensor(_Base):
         self._key = key
         self._attr_native_unit_of_measurement = unit
         self._gain = gain
+        self._attr_state_class = SensorStateClass.MEASUREMENT
+        self._attr_device_class = (
+            SensorDeviceClass.VOLTAGE if key.startswith("v_") else SensorDeviceClass.CURRENT
+        )
 
     @property
     def unique_id(self):
